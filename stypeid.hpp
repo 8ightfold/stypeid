@@ -1,4 +1,3 @@
-#pragma once
 #ifndef STYPEID__HPP_
 #define STYPEID__HPP_
 

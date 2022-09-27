@@ -1,4 +1,4 @@
-# Stypeid : A slim, header-only demangled typeid for GCC, Clang and MSVC
+# Stypeid : A slim, header-only demangled typeid for GCC, Clang, ICC and MSVC
 
 Have you ever tried to get the name of a type, and instead of a nice, readable name, you got mangled garbage?
 ``stypeid`` has you covered! To use, just add the header to your project, and get going!

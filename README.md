@@ -6,11 +6,11 @@ Have you ever tried to get the name of a type, and instead of a nice, readable n
 ## Example usage
 
 ```
-int i = 7;
+using i = int;
 float f = 3.0f;
 
-std::cout << stypeid(i).name() << "\n";
-std::cout << stypeid(f) << "\n";
+std::cout << stypeid<i>() << "\n";
+std::cout << rtti::name(f) << "\n";
 ```
 
 ## Notes

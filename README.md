@@ -9,7 +9,7 @@ Have you ever tried to get the name of a type, and instead of a nice, readable n
 using i = int;
 float f = 3.0f;
 
-std::cout << stypeid<i>() << "\n";
+std::cout << rtti::name<i>() << "\n";
 std::cout << rtti::name(f) << "\n";
 ```
 

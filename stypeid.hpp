@@ -1,39 +1,96 @@
-#ifndef STYPEID__HPP_
-#define STYPEID__HPP_
+#ifndef STYPEID_RTTI_HPP
+#define STYPEID_RTTI_HPP
 
-#include <iostream>
-#include <optional>
-#include <stdio.h>
 #include <string>
+#include <string_view>
 #include <typeinfo>
 
-struct demangler {
-protected: 
-std::optional<std::string> demangle(const char* mangled);
-std::optional<std::string> demangled;
-};
+#if defined(__has_include)
+#  if __has_include(<cxxabi.h>)
+#    include <cstddef>
+#    include <cstdlib>
+#    include <cxxabi.h>
+#    include <fmt/core.h>
+#    define RTTI_REQUIRES_DEMANGLING 1
+#  endif // __has_include(<cxxabi.h>)
+#endif // defined(__has_include)
 
-#if __has_include(<cxxabi.h>)
-#include <cxxabi.h>
-std::optional<std::string> demangler::demangle(const char* mangled) {
-    int status = 0; std::string demangled;
-    char* tmp = abi::__cxa_demangle(mangled, 0, 0, &status);
-    switch(status) {
-        case  0: demangled = std::string(tmp); free(tmp);                 return demangled;
-        case -1: printf("Memory allocation failed for %s.\n", mangled);   return {};
-        case -2: printf("%s is an invalid name under ABI.\n", mangled);   return {};
-        default: printf("Fatal error occured demangling %s.\n", mangled); return {};
+#if !defined(RTTI_REQUIRES_DEMANGLING)
+#  define RTTI_REQUIRES_DEMANGLING 0
+#endif // !defined(RTTI_REQUIRES_DEMANGLING)
+
+
+//=== Implementation details ===//
+namespace rtti::detail_ {
+#  if RTTI_REQUIRES_DEMANGLING
+    namespace {
+        std::string handle__cxa_demangle_result(
+          std::string_view mangled, char* data, std::size_t len, int status) {
+            std::string result;
+            switch (status) {
+                case 0: {
+                    result = std::string(data, len);
+                    break;
+                }
+                case -2: {
+                    result = fmt::format(
+                        "`invalid mangled name {}`", mangled);
+                    break;
+                }
+                default: {
+                    result = "`__cxa_demangle failure`";
+                }
+            };
+
+            std::free(data);
+            return result;
+        }
+
+        std::string demangle(std::string_view mangled) {
+            std::size_t len;
+            int status;
+            char* raw_str = abi::__cxa_demangle(
+                mangled.data(), nullptr, &len, &status);
+            return handle__cxa_demangle_result(
+                mangled, raw_str, len, status);
+        }
+    } // namespace `anonymous`
+#  else
+    namespace {
+        std::string demangle(std::string_view mangled) {
+            return { mangled };
+        }
+    } // namespace `anonymous`
+#  endif // RTTI_REQUIRES_DEMANGLING
+} // namespace rtti::detail_
+
+
+//=== Exposed interface ===//
+namespace rtti {
+    /**
+     * Takes an implementation defined mangled `std::string_view`,
+     * returns a (potentially) demangled `std::string`.
+     */
+    std::string demangle(std::string_view mangled) noexcept {
+        return detail_::demangle(mangled);
     }
-}
-#else
-std::optional<std::string> demangler::demangle(const char* mangled) { return std::string{mangled}; }
-#endif
 
-struct stypeid final : demangler {
-    template<typename Ty> stypeid(Ty &&ty) { this->demangled = demangle(typeid(ty).name()); };
-    std::string name() { return this->demangled.value_or("(null)"); }
-    std::string name() const { return this->demangled.value_or("(null)"); }
-    friend std::ostream& operator << (std::ostream& os, const stypeid id) { return os << id.name(); }
-};
+    /**
+     * Takes a value and returns a demangled type name.
+     */
+    std::string name(auto& v) noexcept {
+        std::string_view mangled { typeid(v).name() };
+        return demangle(mangled);
+    }
 
-#endif // STYPEID__HPP_
+    /**
+     * Takes a type and returns a demangled type name.
+     */
+    template <typename T>
+    std::string name() noexcept {
+        std::string_view mangled { typeid(T).name() };
+        return demangle(mangled);
+    }
+} // namespace rtti
+
+#endif // STYPEID_RTTI_HPP
